@@ -5,6 +5,8 @@ created  创建后（应用：发起请求）
 beforeMount 挂载数据到DOM之前
 
 mounted  挂载数据到DOM之后（应用：操作DOM）
+应用：
+$nextTick()是在DOM更新循环结束之后执行回调函数，在修改数据之后使用此方法
 
 beforeUpdate 更新DOM之前（应用：可以获取原始DOM）
 
@@ -17,5 +19,6 @@ destroyed  销毁后
 activated 激活
 deactivated 停用
 应用：
-<keep-alive></keep-alive>
+<keep-alive></keep-alive> 缓存组件
 能在组件的切换过程中将状态保留在内存中，防止重复渲染，也就是不会销毁了再重建
+例如应用在meta权限控制用户登录
