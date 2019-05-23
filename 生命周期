@@ -1,0 +1,21 @@
+beforeCreate 创建前
+
+created  创建后（应用：发起请求）
+
+beforeMount 挂载数据到DOM之前
+
+mounted  挂载数据到DOM之后（应用：操作DOM）
+
+beforeUpdate 更新DOM之前（应用：可以获取原始DOM）
+
+updated  更新DOM之后（应用：可以获取最新DOM）
+
+beforeDestroy 销毁前
+destroyed  销毁后
+应用：v-if切换时，会销毁DOM，然后重新渲染加载生命周期
+
+activated 激活
+deactivated 停用
+应用：
+<keep-alive></keep-alive>
+能在组件的切换过程中将状态保留在内存中，防止重复渲染，也就是不会销毁了再重建
