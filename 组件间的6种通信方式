@@ -1,0 +1,56 @@
+## 1.$emit props（父子传递）
+## 2.中央事件总线（平行传递）
+vue中$emit与$on
+
+var bus = new Vue();　　
+
+//相当于又new了一个vue实例，bus中含有vue的全部方法；
+
+bus.$emit('msg',this.msg);　　
+
+//发送数据，第一个参数是发送数据的名称，接收时还用这个名字接收，第二个参数是这个数据现在的位置；
+
+bus.$on('msg',msg =>{　　 //这里是对数据的操作 })
+
+//接收数据，第一个参数是数据的名字，与发送时的名字对应，第二个参数是一个方法，要对数据的操作
+
+## 3.$attr $listeners（多层嵌套）
+$attr包含除class、prop属性外的其他属性节点的值 父向子传
+$listeners 传递监听，子向父传递
+例子：<grandparent :msg="msg" :type="type"/>
+<parent v-bind="$attr" v-on="$listeners"></parent>
+<child v-bind="$attr" v-on="$listeners"></child>
+<grandson @click="$emit('msg','我是子孙')">{{$attr.msg}}{{$attr.type}}</grandson>
+
+## 4.provide inject（多少层都可以）
+只有父传子，适合不改变父的情况，只传值
+provide 父组件提供变量
+inject 子组件注入变量
+例子1：
+provide(){
+  return{
+    parent:'父亲'
+  }
+}
+inject:['parent'] //this.parent == '父亲'
+例子2：
+provide(){
+  return{
+    parent:this
+  }
+}
+data(){
+return{
+phone:'父亲的手机'
+}
+}
+inject:['parent'] //this.parent.phone == '父亲的手机'
+
+## 5.$parent $children $root
+vue实例提供的
+父传子：this.$parent.XXX
+子传父：this.$children.XXX
+ ## 6. vuex状态管理
+ 
+ 如果涉及多层传值，且不需改变父组件，可以provide
+ 
