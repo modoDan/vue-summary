@@ -1,1 +1,4 @@
+1 状态共享 --  Observable API
+2 长列表性能优化 -- object.freeze方法来冻结一个对象
+3 作用域插槽 -- v-slot
 链接：https://mp.weixin.qq.com/s/0mUvrXuwkwol_Pdm1Nfd0A
