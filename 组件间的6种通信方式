@@ -14,13 +14,13 @@ bus.$on('msg',msg =>{　　 //这里是对数据的操作 })
 
 //接收数据，第一个参数是数据的名字，与发送时的名字对应，第二个参数是一个方法，要对数据的操作
 
-## 3.$attr $listeners（多层嵌套）
+## 3.$attrs $listeners（多层嵌套）
 $attr包含除class、prop属性外的其他属性节点的值 父向子传
 $listeners 传递监听，子向父传递
 例子：<grandparent :msg="msg" :type="type"/>
-<parent v-bind="$attr" v-on="$listeners"></parent>
-<child v-bind="$attr" v-on="$listeners"></child>
-<grandson @click="$emit('msg','我是子孙')">{{$attr.msg}}{{$attr.type}}</grandson>
+<parent v-bind="$attrs" v-on="$listeners"></parent>
+<child v-bind="$attrs" v-on="$listeners"></child>
+<grandson @click="$emit('msg','我是子孙')">{{$attrs.msg}}{{$attrs.type}}</grandson>
 
 ## 4.provide inject（多少层都可以）
 只有父传子，适合不改变父的情况，只传值
