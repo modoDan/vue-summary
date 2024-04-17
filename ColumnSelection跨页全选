@@ -1,0 +1,186 @@
+<template>
+  <el-table-column
+    class-name="ml-column-selection"
+    type="selection"
+    width="70"
+    column-key="selection"
+    :filterMultiple="false"
+    :filters="selectFilters"
+    :filter-method="filterSelect"
+    :selectable="setSelectable"
+  ></el-table-column>
+</template>
+
+<script>
+export default {
+  name: 'ColumnSelection',
+  data() {
+    return {
+      checkedAll: false,
+      multipleSelection: [],
+      multipleSelectionAll: [],
+      selectFilters: [
+        {
+          text: '单页全选',
+          value: false
+        },
+        {
+          text: '跨页全选',
+          value: true
+        },
+        {
+          text: '取消全选',
+          value: 'cancel'
+        }
+      ]
+    }
+  },
+  props: {
+    refTable: {
+      type: Object,
+      default: () => {}
+    }
+  },
+  watch: {
+    tableData: {
+      deep: true,
+      handler(val) {
+        this.setSelectionAll(val)
+      }
+    }
+  },
+  computed: {
+    tableData() {
+      return this.$parent.tableData
+    }
+  },
+  mounted() {
+    // 进入页面重置
+    this.$nextTick(() => {
+      this.resetSelect()
+    })
+  },
+  methods: {
+    filterSelect(value) {
+      this.checkedAll = value
+      if (value === 'cancel') {
+        this.resetSelect(true)
+      } else {
+        if (value) {
+          // 选了跨页全选，重置单页全选变量，以便下次再选单页全选时能全选中单页
+          this.multipleSelectionAll = this.multipleSelection
+        }
+        this.changeCheckAll(true)
+      }
+      return true
+    },
+    setSelectable() {
+      return !this.checkedAll
+    },
+    unique(arr) {
+      const res = new Map()
+      // 加inspectOpId是导入结果管理里面没有id
+      return arr.filter((arr) => !res.has(arr.id) && res.set(arr.id, 1))
+    },
+    // 全选操作
+    selectionChange(val) {
+      this.multipleSelection = val
+      if (this.checkedAll) {
+        // 跨页全选
+        this.$emit('selected', {
+          selected: this.multipleSelection,
+          checkAll: this.checkedAll
+        })
+      }
+    },
+    select(val, row) {
+      if (!val.map(({ id }) => id).includes(row.id)) {
+        const i = this.multipleSelectionAll.findIndex((r) => r.id === row.id)
+        this.multipleSelectionAll.splice(i, 1)
+      } else {
+        this.multipleSelectionAll.push(row)
+      }
+
+      this.$emit('selected', {
+        selected: this.multipleSelectionAll,
+        checkAll: this.checkedAll
+      })
+    },
+    // 改变全选所有复选框
+    changeCheckAll(val) {
+      if (val) {
+        // 全选选中时当前页所有数据选中
+        this.tableData.forEach((row) => {
+          if (row) {
+            this.refTable.toggleRowSelection(row, true)
+          }
+        })
+      } else {
+        this.refTable.clearSelection()
+      }
+    },
+    setSelectionAll(tableData) {
+      if (this.checkedAll) {
+        // 跨页全选后，重置单页全选所有选中项
+        this.multipleSelectionAll = []
+        this.$nextTick(() => {
+          this.changeCheckAll(this.checkedAll)
+        })
+        // 跨页全选
+        this.$emit('selected', {
+          selected: this.multipleSelection,
+          checkAll: this.checkedAll
+        })
+      } else {
+        this.multipleSelectionAll = this.unique(
+          this.multipleSelectionAll.concat(this.multipleSelection)
+        )
+        this.$emit('selected', {
+          selected: this.multipleSelectionAll,
+          checkAll: this.checkedAll
+        })
+        tableData.forEach((row) => {
+          if (this.multipleSelectionAll.map(({ id }) => id).includes(row.id)) {
+            this.$nextTick(() => {
+              this.refTable.toggleRowSelection(row, true)
+            })
+          } else {
+            this.refTable.clearSelection()
+          }
+        })
+      }
+    },
+    resetSelect(autoLoad) {
+      this.checkedAll = false
+      if (!autoLoad) {
+        this.refTable?.clearFilter(['selection'])
+      }
+      this.multipleSelection = []
+      this.multipleSelectionAll = []
+      this.refTable?.clearSelection()
+    }
+  }
+}
+</script>
+
+<style lang="scss">
+.el-table .el-table__header th.is-leaf.ml-column-selection {
+  .cell .el-checkbox {
+    display: none;
+  }
+
+  .cell::before {
+    content: '全选';
+    color: #222;
+    padding-right: 8px;
+  }
+}
+
+.el-table-filter {
+  .el-table-filter__list-item {
+    &:first-child {
+      display: none;
+    }
+  }
+}
+</style>
