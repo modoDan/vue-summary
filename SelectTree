@@ -1,0 +1,254 @@
+{
+  name: 'ElSelectTree',
+  data() {
+    return {
+      filterValue: '',
+    }
+  },
+  props: {
+    treeAttrs: {
+      type: Object,
+      default: () => ({
+        props: { label: 'label', children: 'children' },
+        nodeKey: 'id'
+      })
+    },
+    value: {
+      type: [Array, String, Number]
+    },
+    isShowParentName: {
+      default: true,
+      type: Boolean
+    }
+  },
+  computed: {
+    labelKey() {
+      const { props } = this.treeAttrs
+      return props?.label || 'label'
+    },
+    valueKey() {
+      const { nodeKey } = this.treeAttrs
+      return nodeKey || 'value'
+    },
+    arrData() {
+      return this.optionData(this.$attrs.options)
+    },
+    selectNames() {
+      const values = Array.isArray(this.value) ? this.value : [this.value]
+
+      return values
+        .map((key) => this.arrData.find((item) => item.value === key)?.label)
+        .filter(Boolean)
+    },
+    expandOnClickNode() {
+      if ('expandOnClickNode' in this.treeAttrs) {
+        return this.treeAttrs.expandOnClickNode
+      }
+      if (this.arrData.find((r) => !r.isLeaf && r.disabled)) {
+        // 如果有父级节点被禁用了，则不展开
+        return false
+      }
+      return true
+    }
+  },
+  methods: {
+    filterNode(value, data) {
+      if (!value) return true
+      return data[this.labelKey].indexOf(value) !== -1
+    },
+    filterMethod(filterValue) {
+      this.filterValue = filterValue
+    },
+    optionData(array, result = [], name) {
+      if (!Array.isArray(array)) return []
+      array.forEach((item) => {
+        const label =
+          name && this.isShowParentName
+            ? `${name} / ${item[this.labelKey]}`
+            : item[this.labelKey]
+        const option = {
+          label: label,
+          value: item[this.valueKey],
+          disabled: item.currentDisabled,
+          isLeaf: !item.children || !item.children.length
+        }
+        result.push(option)
+        if (item.children && item.children.length !== 0) {
+          this.optionData(item.children, result, label)
+        }
+      })
+      return JSON.parse(JSON.stringify(result))
+    },
+    onCheckChange(...args) {
+      if (this.treeAttrs?.checkStrictlyParent) {
+        this.nodeCheck(...args)
+        let keys = this.$refs.tree.getCheckedKeys()
+        return this.$listeners.input(keys)
+      }
+
+      let nodes = this.$refs.tree.getCheckedNodes()
+      let ids = nodes.filter((node) => !node.children || !node.children.length).map(r => r[this.valueKey])
+      this.$listeners.input(ids)
+    },
+    removeTag(id) {
+      let ids = [...this.value].filter((item) => item !== id)
+      this.$listeners.input(ids)
+    },
+    clear() {
+      this.$listeners.input([])
+      if (!Array.isArray(this.value) && this.treeAttrs.highlightCurrent) {
+        // 单选时如果有高亮效果清除选中效果
+        this.$listeners.input(undefined)
+      }
+    },
+    currentChange(data, node) {
+      // 选择任意层级
+      if (this.treeAttrs.singleSelect) {
+        // 选中后关闭弹框
+        this.$refs.iSelect?.$refs.select?.blur()
+        return this.$listeners.input(data[this.valueKey])
+      }
+      if (this.$attrs.multiple === '' || this.$attrs.multiple) {
+        return
+      }
+      if (node.isLeaf && !data.currentDisabled) {
+        // data.currentDisabled表示不能选中的节点
+        // 选父级不关闭，选叶子节点后关闭弹框
+        this.$refs.iSelect?.$refs.select?.blur()
+        this.$listeners.input(data[this.valueKey])
+      } else {
+        // 禁用的节点或者父节点，不支持选中
+        this.$refs.tree?.setCurrentKey(null)
+      }
+    },
+    // 节点自定义渲染
+    specialRenderContent(h, { node, data, store }) {
+      if (this.$scopedSlots.default) {
+        return this.$scopedSlots.default({ node, data })
+      }
+      if (this.$attrs.renderContent) {
+        return this.$attrs.renderContent(h, { node, data, store })
+      }
+      if (data.currentDisabled) {
+        // 禁用节点设置禁用效果样式
+        return (
+          <span
+            class="el-tree-node__label tree-node__disabled"
+            style="cursor:not-allowed"
+          >
+            {node.label}
+          </span>
+        )
+      }
+      return <span class="el-tree-node__label">{node.label}</span>
+    },
+    updateCurrentValue() {
+      // 更新选中值
+      this.$nextTick(() => {
+        if (!Array.isArray(this.value)) {
+          this.$refs.tree.setCurrentKey(this.value)
+          if (this.treeAttrs.highlightCurrent) {
+            // 有高亮选中效果的的子节点，展开父节点
+            this.$refs.tree.defaultExpandedKeys = [this.value]
+          }
+        }
+      })
+    },
+    visibleChange() {
+      this.filterValue = ''
+    },
+    nodeCheck(data, obj) {
+      let isSelected = obj.checkedKeys.includes(data[this.valueKey])
+      let curNode = this.$refs.tree.getNode(data[this.valueKey])
+      let nodes = curNode.childNodes || []
+      if (nodes.length && isSelected) {
+        curNode.expanded = isSelected
+      }
+      this.setNodes(nodes, isSelected)
+    },
+    setNodes(list = [], flag = false) {
+      if (!list.length) return []
+      for (let item of list) {
+        item.checked = flag
+        if (item.childNodes && item.childNodes.length) {
+          if (flag) {
+            item.expanded = flag
+          }
+          this.setNodes(item.childNodes, flag)
+        }
+      }
+    }
+  },
+  watch: {
+    filterValue(val) {
+      this.$refs.tree.filter(val)
+    },
+    value(values = []) {
+      if (Array.isArray(values)) {
+        this.$refs.tree.setCheckedKeys(values)
+      } else {
+        this.$refs.tree.setCurrentKey(values)
+      }
+    }
+  },
+  mounted() {
+    this.updateCurrentValue()
+  },
+  beforeUpdate() {
+    // 模型详情分组监听value、mounted设置选中节点无效时，可能是DOM并未渲染完,也就是被选中的树节点还没渲染出来,所以对它操作是无效的。所以需要借助$nextTick,并且确保DOM已渲染。接口太慢时，mounted也可能没渲染完。
+    this.updateCurrentValue()
+  },
+  render() {
+    const { options, ...args } = this.$attrs
+    let otherAttrs
+    if (!(this.$attrs.multiple === '' || this.$attrs.multiple)) {
+      otherAttrs = {
+        renderContent: this.specialRenderContent,
+        expandOnClickNode: this.expandOnClickNode
+      }
+    }
+    const treeData = {
+      attrs: {
+        ...this.treeAttrs,
+        data: options,
+        ...otherAttrs
+      }
+    }
+    const selectData = {
+      attrs: {
+        ...args,
+        value: this.value
+      }
+    }
+    console.log(this.value)
+    return (
+      <el-select
+        ref="iSelect"
+        on={{
+          'remove-tag': this.removeTag,
+          'visible-change': this.visibleChange
+        }}
+        onClear={this.clear}
+        {...selectData}
+        filterMethod={this.filterMethod}
+      >
+        {this.arrData.map((item) => (
+          <el-option
+            label={item.label}
+            value={item.value}
+            disabled={item.disabled}
+            style="display: none;"
+          />
+        ))}
+
+        <el-tree
+          ref="tree"
+          filter-node-method={this.filterNode}
+          {...treeData}
+          onCheck={this.onCheckChange}
+          onCurrent-change={this.currentChange}
+        ></el-tree>
+      </el-select>
+    )
+  }
+}
