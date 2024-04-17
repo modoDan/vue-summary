@@ -1,0 +1,154 @@
+<!--
+ * @File: 动态渲染节点-更多弹出框
+ * @Date: 2023-02-25 15:47:28
+-->
+<template>
+  <div v-if="calcLen">
+    <RenderDom
+      :vNode="visibleNodes.slice(0, calcLen > maxLen ? maxLen - 1 : calcLen)"
+    />
+    <el-popover
+      v-if="calcLen > maxLen"
+      :trigger="trigger"
+      placement="bottom"
+      effect="light"
+      popper-class="more-btn-popper"
+    >
+      <div class="btn-content">
+        <RenderDom :vNode="visibleNodes.slice(maxLen - 1)" />
+      </div>
+      <el-button
+        slot="reference"
+        style="margin-left: 12px"
+        v-bind="{
+          type: 'primary',
+          ...btnAttrs
+        }"
+      >
+        {{ btnAttrs.text || '更多' }}
+      </el-button>
+    </el-popover>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'DynamicCalcNodes',
+  components: {
+    RenderDom: {
+      // 使用渲染函数
+      functional: true,
+      props: {
+        vNode: [Array, String, Object, Number]
+      },
+      render(h, ctx) {
+        if (typeof ctx.props.vNode === 'object') return ctx.props.vNode
+        return h('span', ctx.props.vNode)
+      }
+    }
+  },
+  props: {
+    // 外层显示的元素节点数量
+    maxLen: {
+      type: Number,
+      default: 3
+    },
+    // 更多按钮触发方式
+    trigger: {
+      type: String,
+      default: 'click',
+      validator: (value) => {
+        // 选项：click、hover
+        return ['click', 'hover'].includes(value)
+      }
+    },
+    // 更多按钮属性
+    btnAttrs: {
+      type: Object,
+      default: () => ({
+        type: 'primary',
+        text: '更多'
+      })
+    },
+    // VNode节点
+    slotNodes: {
+      type: Array,
+      default: null
+    }
+  },
+  computed: {
+    calcLen() {
+      return this.visibleNodes.length
+    }
+  },
+  watch: {
+    slotNodes(v) {
+      if (v && v.length) {
+        // 更新节点
+        this.getVisibleNodes()
+      }
+    }
+  },
+  data() {
+    return {
+      visibleNodes: []
+    }
+  },
+  methods: {
+    getVisibleNodes() {
+      let slotNodes = []
+      if (this.$slots.default) {
+        // 通过slot插槽传入的VNode节点
+        slotNodes = this.$slots.default
+      }
+      // slots是将父组件编译生成的插槽VNode，在渲染子组件时，放置到对应子组件渲染VNode树中
+      // 渲染组件时，根据VNode渲染实际DOM元素的
+      if (this.slotNodes) {
+        // 通过props属性传入的VNode节点
+        slotNodes = this.slotNodes
+      }
+      this.visibleNodes = slotNodes.filter((r) => {
+        if (r.data?.directives) {
+          let showTag = r.tag
+          const sVal = r.data.directives.find((k) => k.rawName === 'v-show')
+          if (sVal) {
+            showTag = showTag && sVal.value
+          }
+          return showTag
+        }
+        return r.tag
+      })
+    }
+  },
+  mounted() {
+    // 初始化节点
+    this.getVisibleNodes()
+  },
+  beforeUpdate() {
+    // 更新节点
+    if (this.$slots.default) {
+      this.getVisibleNodes()
+    }
+  }
+}
+</script>
+
+<style lang="scss">
+.more-btn-popper {
+  min-width: auto;
+  .btn-content {
+    min-width: 60px;
+    display: flex;
+    flex-direction: column;
+    .el-button {
+      margin-left: 0;
+      &--primary {
+        margin-bottom: 8px;
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+}
+</style>
