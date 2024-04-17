@@ -1,0 +1,284 @@
+<!--popover框选择树组件-->
+<template>
+  <div
+    @mouseenter="hovering = true"
+    @mouseleave="hovering = false"
+    style="height: 32px"
+    v-clickoutside="clickAll"
+  >
+    <el-popover
+      ref="treePopover"
+      :placement="placement"
+      popper-class="org-popover"
+      :disabled="selectDisabled"
+      @show="handlePopoverShow"
+      v-bind="popperProps"
+    >
+      <el-scrollbar
+        wrap-class="el-select-dropdown__wrap"
+        view-class="el-select-dropdown__list"
+        ref="scrollbar"
+      >
+        <el-tree
+          :data="data"
+          :props="treeProps"
+          :node-key="treeNodeKey"
+          ref="tree"
+          :default-expanded-keys="defaultExpandedKeys"
+          @check="nodeCheck"
+          @node-expand="handleNodeToggle"
+          @node-collapse="handleNodeToggle"
+          :default-expand-all="false"
+          :check-on-click-node="false"
+          highlight-current
+          show-checkbox
+          check-strictly
+          :render-content="renderContent"
+          :filter-node-method="filterNodeMethod"
+        ></el-tree>
+      </el-scrollbar>
+    </el-popover>
+    <div class="el-input el-input--small el-input--suffix">
+      <div
+        ref="input"
+        v-popover:treePopover
+        tabindex="0"
+        class="el-input__inner"
+        style="display: flex"
+      >
+        <template v-if="this.checkedNodes.length">
+          <span class="checked-org first-org">
+            {{ this.checkedNodes[0][treeProps.label] }}
+          </span>
+          <span
+            v-if="this.checkedNodes.length > 1"
+            class="checked-org"
+            style="margin-left: 8px"
+          >
+            +{{ this.checkedNodes.length - 1 }}
+          </span>
+        </template>
+        <i
+          v-if="checkedNodes.length && hovering && !selectDisabled"
+          slot="suffix"
+          class="el-input__icon el-icon-circle-close el-input__clear"
+          style="position: absolute; right: 5px"
+          @mousedown.prevent
+          @click="clear"
+        ></i>
+        <div
+          style="flex: 1; min-width: 32px"
+          contenteditable
+          @input="changeContent"
+        ></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import emitter from 'element-ui/src/mixins/emitter'
+import eachTree from 'xe-utils/eachTree'
+import Clickoutside from 'element-ui/src/utils/clickoutside'
+export default {
+  name: 'TTreeSelect',
+  mixins: [emitter],
+  inheritAttrs: false,
+  inject: {
+    elForm: {
+      default: ''
+    },
+    elFormItem: {
+      default: ''
+    }
+  },
+  data() {
+    return {
+      hovering: false,
+      selectedLabel: '',
+      defaultExpandedKeys: [],
+      checkedNodes: [],
+      query: ''
+    }
+  },
+  props: {
+    value: {
+      default: null
+    },
+    disabled: {
+      type: Boolean,
+      default: false
+    },
+    data: {
+      type: Array,
+      default() {
+        return []
+      }
+    },
+    treeProps: {
+      type: Object,
+      default() {
+        return {
+          label: 'label',
+          children: 'children'
+        }
+      }
+    },
+    treeNodeKey: {
+      type: String,
+      default: 'id'
+    },
+    showCheckbox: {
+      default: false
+    },
+    renderContent: {
+      type: Function,
+      default: null
+    },
+    appendToBody: {
+      default: true
+    },
+    placement: {
+      default: 'bottom-start'
+    }
+  },
+  directives: { Clickoutside },
+  computed: {
+    selectDisabled() {
+      return this.disabled || (this.elForm || {}).disabled
+    },
+    // eslint-disable-next-line vue/return-in-computed-property
+    popperProps() {
+      if (!this.appendToBody) {
+        return {
+          appendToBody: false,
+          popperOptions: {
+            boundariesElement: 'body',
+            gpuAcceleration: true,
+            positionFixed: true,
+            preventOverflow: true
+          }
+        }
+      }
+    }
+  },
+  mounted() {},
+  methods: {
+    filterNodeMethod(value, data) {
+      if (!value) return true
+      return data[this.treeProps.label].indexOf(value) !== -1
+    },
+    changeContent(e) {
+      const content = e.target.innerText
+      this.query = content
+      console.log(content)
+    },
+    clickAll() {
+      if (!this.appendToBody && this.$refs.treePopover.showPopper) {
+        this.$refs.treePopover.doClose()
+      }
+    },
+    setNodes(list = [], flag = false) {
+      if (!list.length) return []
+      for (let item of list) {
+        item.checked = flag
+        if (item.childNodes && item.childNodes.length) {
+          if (flag) {
+            item.expanded = flag
+          }
+          this.setNodes(item.childNodes, flag)
+        }
+      }
+    },
+    nodeCheck(data, obj) {
+      let isSelected = obj.checkedKeys.includes(data.id)
+      let curNode = this.$refs.tree.getNode(data.id)
+      let nodes = curNode.childNodes || []
+      if (nodes.length && isSelected) {
+        curNode.expanded = isSelected
+      }
+      this.setNodes(nodes, isSelected)
+      this.emitEvent(this.$refs.tree.getCheckedKeys())
+      this.checkedNodes = this.$refs.tree.getCheckedNodes()
+    },
+    handlePopoverShow() {
+      this.$refs.treePopover.$refs.popper.style.minWidth =
+        this.$refs.input.getBoundingClientRect().width + 'px'
+    },
+    handleNodeToggle() {
+      let timer = setTimeout(() => {
+        this.$refs.treePopover.updatePopper()
+        clearTimeout(timer)
+      }, 350)
+    },
+    clear() {
+      this.checkedNodes = []
+      this.$refs.tree.setCheckedKeys([])
+      this.emitEvent(null)
+    },
+    emitEvent(value) {
+      this.$emit('input', value)
+      this.$emit('change', value)
+      this.dispatch('ElFormItem', 'el.form.change', value)
+    },
+    getSelectLabel() {
+      let ret = null
+      let parentKey = null
+      eachTree(this.data, (item, index, items, paths, parent, nodes) => {
+        if (item[this.treeNodeKey] === this.value) {
+          ret = item[this.treeProps.label]
+          parentKey = parent && parent[this.treeNodeKey]
+        }
+      })
+
+      return {
+        label: ret,
+        parentKey: parentKey
+      }
+    }
+  },
+  watch: {
+    query(v) {
+      // if (v) {
+      this.$refs.tree.filter(v)
+      // }
+    },
+    value: {
+      handler(newValue) {
+        let select = this.getSelectLabel()
+        this.selectedLabel = select.label
+        if (select.parentKey !== null) {
+          this.defaultExpandedKeys = [select.parentKey]
+        }
+        this.$nextTick(() => {
+          if (this.$refs.tree) {
+            this.$refs.tree.setCheckedKeys(newValue || [])
+            this.checkedNodes = this.$refs.tree.getCheckedNodes()
+          }
+        })
+      },
+      immediate: true
+    }
+  }
+}
+</script>
+<style lang="scss">
+.checked-org {
+  padding: 3px;
+  color: #2175ff;
+  background: #e9f1ff;
+  border-radius: 2px;
+}
+.first-org {
+  display: inline-block;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 15px;
+  transform: translateY(5px);
+}
+.org-popover .el-scrollbar__bar.is-vertical {
+  right: -6px;
+}
+</style>
