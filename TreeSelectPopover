@@ -69,7 +69,7 @@
         <div
           style="flex: 1; min-width: 32px"
           contenteditable
-          @input="changeContent"
+          @input="queryTree"
         ></div>
       </div>
     </div>
@@ -168,7 +168,7 @@ export default {
       if (!value) return true
       return data[this.treeProps.label].indexOf(value) !== -1
     },
-    changeContent(e) {
+    queryTree(e) {
       const content = e.target.innerText
       this.query = content
       console.log(content)
